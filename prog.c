@@ -66,14 +66,14 @@ static ssize_t _write(int fd, const void *buf, size_t count)
   exit(-4);
 }
 
-static void _copyDelta(int fd, long *lastSize)
+static void _copyDelta(int sourceFd, long *targetLastSize)
 {
-    off_t currentFileLength = _getFileLength(fd);
-    long int delta = currentFileLength - *lastSize;
+    off_t currentFileLength = _getFileLength(sourceFd);
+    long int delta = currentFileLength - *targetLastSize;
     if (delta < 0) exit(0);
     while(delta > 0) {
       char buffer[4096];
-      ssize_t r = _read(fd, buffer, 4096);
+      ssize_t r = _read(sourceFd, buffer, 4096);
       if (!r) break;
       ssize_t w = _write(1, buffer, r);
       if (!w) {
@@ -81,7 +81,7 @@ static void _copyDelta(int fd, long *lastSize)
 	exit(-6);
       }
       delta -= w;
-      *lastSize += w;
+      *targetLastSize += w;
     }
 }
 
@@ -117,11 +117,11 @@ int main(int argc, const char *argv[])
   }
   const char *watchedFileName = argv[2];
   int inotify = _initNotify(watchedFileName);
-  long lastSize = _getLastSize(argv[1]);
+  long targetLastSize = _getLastSize(argv[1]);
   int fd = _openFile(watchedFileName);
-  _seek(fd, lastSize);
+  _seek(fd, targetLastSize);
   for(;;) {
-    _copyDelta(fd, &lastSize);
+    _copyDelta(fd, &targetLastSize);
     _waitForChange(inotify);
   }
   return 0;
